@@ -1,0 +1,82 @@
+CLIENT
+
+import java.io.*;
+import java.net.*;
+
+public class client {
+    public static void main(String[] args) {
+        try {
+            Socket socket = new Socket("localhost", 5000);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            // Get current time and send it to the server
+            long currentTime = System.currentTimeMillis();
+            out.println(currentTime);
+
+            // Receive adjusted time from server
+            long adjustedTime = Long.parseLong(in.readLine());
+            long timeDiff = adjustedTime - currentTime;
+
+            System.out.println("Original time: " + currentTime);
+            System.out.println("Adjusted time: " + adjustedTime);
+            System.out.println("Time difference: " + timeDiff + " ms");
+
+            in.close();
+            out.close();
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+SERVER
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+
+public class server {
+    public static void main(String[] args) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(5000);
+            System.out.println("Server started, waiting for connections...");
+
+            // Accept client connections
+            List<Socket> clientSockets = new ArrayList<>();
+            while (clientSockets.size() < 5) {
+                Socket clientSocket = serverSocket.accept();
+                clientSockets.add(clientSocket);
+                System.out.println("Connected to client: " + clientSocket.getInetAddress().getHostName());
+            }
+
+            // Get current time from all clients
+            List<Long> clientTimes = new ArrayList<>();
+            for (Socket clientSocket : clientSockets) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                long clientTime = Long.parseLong(in.readLine());
+                clientTimes.add(clientTime);
+            }
+
+            // Compute average time
+            long sumTimes = 0;
+            for (long time : clientTimes) {
+                sumTimes += time;
+            }
+            long averageTime = sumTimes / clientTimes.size();
+
+            // Send time adjustment to all clients
+            for (Socket clientSocket : clientSockets) {
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+                out.println(averageTime);
+                out.close();
+                clientSocket.close();
+            }
+            serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
